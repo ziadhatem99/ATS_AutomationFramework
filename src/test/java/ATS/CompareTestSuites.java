@@ -3,7 +3,11 @@ package ATS;
 import io.restassured.response.Response;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import static Assets.TFS_URLS.*;
+import static Assets.ATS_URLS.*;
+import static Assets.GlobalConstans.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,12 +15,15 @@ import java.util.List;
 import static io.restassured.RestAssured.given;
 
 public class CompareTestSuites {
-    String baseUrl = "http://sistemisvr3.iskraemeco.si:8080";
-
     public List<JSONObject> fetchAndModifyTestSuitsFromTFS() {
-        Response response = given().baseUri(baseUrl).when().param("api-version", "5.0")
-                .header("Authorization", "Basic bW9lc2FtOjNlbnZnZ3V4NW9lYTZvd2ZsdWFkM3Vna2l5aXpkZGc1Njdqbm1idndpeXF1cjNkanFxdGE=")
-                .get("/tfs/DefaultCollection/VerificationAndValidation/_apis/test/plans/109165/suites");
+        Response response = given().
+                baseUri(TFS_BaseUrl)
+                .when().log().all()
+                .param("api-version", "5.0")
+                .header("Authorization", TFS_Token)
+                .get(TFS_getSuits);
+
+        response.then().assertThat().statusCode(200);
 
         JSONObject jsonObject = new JSONObject(response.getBody().asString());
         JSONArray valueArray = jsonObject.getJSONArray("value");
@@ -35,19 +42,21 @@ public class CompareTestSuites {
         return modifiedObjectsList;
     } //This was for the TFS collection
 
-    @org.testng.annotations.Test
-    public void FetchAndModifyTestSuitsFromATS() {
+    public List<JSONObject> fetchAndModifyTestSuitsFromATS() {
         Response response = given()
-                .header("Authorization", "Bearer lytr42gc5kp64hlxlstkhosmtzvqrpquhjbqgwk4wrjsiebbp5ya")
+                .baseUri(ATS_BaseURL)
+                .when().log().all()
+                .header("Authorization", ATS_Token)
                 .relaxedHTTPSValidation()
-                .param("projectName", "VerificationAndValidation").
-                param("planID", "109165")
-                .get("https://ats.iskraemeco.egy/apis/TFS/GetSuites");
+                .param("projectName", projectName).
+                param("planID", testPlanID)
+                .get(ATS_getSuits);
+        response.then().assertThat().statusCode(200);
 
         JSONObject jsonObject = new JSONObject(response.getBody().asString());
         JSONArray valueArray = jsonObject.getJSONArray("result");
 
-        List<JSONObject> modifiedObjects = new ArrayList<>();
+        List<JSONObject> TFSmodifiedObjects = new ArrayList<>();
 
         for (int i = 0; i < valueArray.length(); i++) {
             JSONObject originalObject = valueArray.getJSONObject(i);
@@ -55,19 +64,24 @@ public class CompareTestSuites {
             JSONObject modifiedObject = new JSONObject();
             modifiedObject.put("name", originalObject.getString("name"));
             modifiedObject.put("id", originalObject.getInt("id"));
-            modifiedObjects.add(modifiedObject);
+            TFSmodifiedObjects.add(modifiedObject);
         }
+        return TFSmodifiedObjects;
 
-        List<JSONObject> testModifiedObjects = fetchAndModifyTestSuitsFromTFS();
+    }
 
+    @Test
+    public void validateOnTestSuits() {
+        List<JSONObject> TFSmodifiedObjects = fetchAndModifyTestSuitsFromTFS();
+        List<JSONObject> ATSmodifiedObjects = fetchAndModifyTestSuitsFromATS();
         boolean listsAreSame = true;
 
-        if (modifiedObjects.size() != testModifiedObjects.size()) {
+        if (TFSmodifiedObjects.size() != ATSmodifiedObjects.size()) {
             listsAreSame = false;
         } else {
-            for (int i = 0; i < modifiedObjects.size(); i++) {
-                JSONObject obj1 = modifiedObjects.get(i);
-                JSONObject obj2 = testModifiedObjects.get(i);
+            for (int i = 0; i < TFSmodifiedObjects.size(); i++) {
+                JSONObject obj1 = TFSmodifiedObjects.get(i);
+                JSONObject obj2 = ATSmodifiedObjects.get(i);
 
                 if (!obj1.getString("name").equals(obj2.getString("name"))
                         || obj1.getInt("id") != obj2.getInt("id")) {
@@ -76,14 +90,14 @@ public class CompareTestSuites {
                 }
             }
         }
-        System.out.println(modifiedObjects);
-        System.out.println(testModifiedObjects);
+        System.out.println(TFSmodifiedObjects);
+        System.out.println(ATSmodifiedObjects);
         if (listsAreSame) {
             System.out.println("Lists are the same based on names and ids.");
         } else {
             System.out.println("Lists are different based on names and ids.");
         }
-        if (modifiedObjects.size() == testModifiedObjects.size()) {
+        if (TFSmodifiedObjects.size() == ATSmodifiedObjects.size()) {
             System.out.println("Lists are the same Size");
         } else {
             System.out.println("Lists are not the same Size");
