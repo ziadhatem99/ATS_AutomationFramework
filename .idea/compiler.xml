@@ -9,5 +9,8 @@
         <module name="ATS_AutomationFrameWork" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="untitled1" target="17" />
+    </bytecodeTargetLevel>
   </component>
 </project>
