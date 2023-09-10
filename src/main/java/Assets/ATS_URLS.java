@@ -6,4 +6,6 @@ public class ATS_URLS {
     public static String ATS_getPlans = "/TFS/GetPlans";
 
     public static String ATS_getSuits = "/TFS/GetSuites";
+
+    public static String ATS_InvalidData = "/TFSError/GetPlans?projectName=VerificationAndValidation";
 }
